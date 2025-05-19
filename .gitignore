@@ -1,3 +1,106 @@
-# Build folder and log file
-build/
-build.log
+#!/usr/bin/env python3
+
+import os
+import subprocess
+import sys
+import time
+
+# Skull banner
+BANNER = r"""
+      ______
+   .-        -.
+  /            \
+ |              |
+ |,  .-.  .-.  ,|
+ | )(_o/  \o_)( |
+ |/     /\     \|
+ (_     ^^     _)
+  \__|IIIIII|__/
+   | \IIIIII/ |
+   \          /
+    `--------`
+     D S  C L U B
+"""
+
+# Print a success message in green
+def print_ok(message):
+    print(f"\033[92m[+] {message}\033[0m")
+
+# Print an error message in red
+def print_error(message):
+    print(f"\033[91m[!] {message}\033[0m")
+
+# Run a shell command
+def run_command(command):
+    result = subprocess.run(command, shell=True)
+    if result.returncode != 0:
+        print_error(f"Error running: {command}")
+        sys.exit(1)
+
+# Step 1: Show banner
+os.system("clear")
+print("\033[95m" + BANNER + "\033[0m")
+time.sleep(1)
+
+# Step 2: Check and install required packages
+packages = ["wget", "unzip", "curl"]
+
+for package in packages:
+    print_ok(f"Checking {package}")
+    if subprocess.call(f"command -v {package}", shell=True) != 0:
+        print_ok(f"Installing {package}")
+        run_command(f"sudo apt update && sudo apt install -y {package}")
+
+# Step 3: Install Oh My Posh
+print_ok("Downloading Oh My Posh")
+run_command("sudo wget https://github.com/JanDeDobbeleer/oh-my-posh/releases/latest/download/posh-linux-amd64 -O /usr/local/bin/oh-my-posh")
+run_command("sudo chmod +x /usr/local/bin/oh-my-posh")
+
+# Step 4: Install Nerd Font (Hack)
+print_ok("Downloading Nerd Font (Hack)")
+run_command("mkdir -p ~/.local/share/fonts")
+run_command("cd ~/.local/share/fonts && wget https://github.com/ryanoasis/nerd-fonts/releases/latest/download/Hack.zip -O Hack.zip")
+run_command("cd ~/.local/share/fonts && unzip -o Hack.zip")
+run_command("fc-cache -fv")
+
+# Step 5: Download selected theme
+themes = {
+    "1": "jandedobbeleer",
+    "2": "paradox",
+    "3": "powerlevel10k_rainbow",
+    "4": "night-owl",
+    "5": "atomic"
+}
+
+print("\nSelect a theme:")
+for key, name in themes.items():
+    print(f"{key}. {name}")
+choice = input("Enter the number of the theme you want: ")
+
+selected_theme = themes.get(choice, "jandedobbeleer")
+theme_path = f"~/.poshthemes/{selected_theme}.omp.json"
+
+print_ok(f"Downloading theme: {selected_theme}")
+run_command("mkdir -p ~/.poshthemes")
+run_command(f"wget https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/{selected_theme}.omp.json -O {theme_path}")
+run_command(f"chmod u+rw {theme_path}")
+
+# Step 6: Configure shell
+bashrc = os.path.expanduser("~/.bashrc")
+config_line = f'eval "$(oh-my-posh init bash --config {theme_path})"'
+
+if config_line not in open(bashrc).read():
+    with open(bashrc, "a") as file:
+        file.write(f"\n# Oh My Posh config\n{config_line}\n")
+
+    with open(bashrc, "a") as file:
+        file.write('\n# Skull Banner\n')
+        for line in BANNER.splitlines():
+            file.write(f'echo "{line}"\n')
+
+    print_ok("Bash configuration updated.")
+else:
+    print_ok("Configuration already present in .bashrc")
+
+print_ok("Done! Run 'source ~/.bashrc' or restart your terminal.")
+
